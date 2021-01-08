@@ -3,6 +3,7 @@ package jobmanager
 import (
 	"errors"
 	"sync"
+	"time"
 )
 
 var (
@@ -19,56 +20,101 @@ type JobsManager struct {
 }
 
 // NewJobManager method
-func NewJobManager() *JobsManager {
-	return &JobsManager{
+func NewJobManager(workerSize int) *JobsManager {
+	j := &JobsManager{
 		jobList:       make(map[string]*Job),
 		workerChannel: make(chan *Job),
 		cancelChannel: make(chan *Job),
-		workerSize:    100, //By default allow 100 concurrent tasks
+		workerSize:    workerSize,
 	}
+
+	j.startManager()
+	return j
 }
 
-// StartManager method
-func (j *JobsManager) StartManager() {
+// startManager method
+func (j *JobsManager) startManager() {
 	for i := 0; i < j.workerSize; i++ {
 		go j.registerWorker()
 	}
 }
 
+func (j *JobsManager) Run(jobFun interface{}, params ...interface{}) (*Job, error) {
+	job := NewJob()
+	err := job.Do(jobFun, params)
+	if err != nil {
+		return nil, err
+	}
+
+	j.RunJob(job)
+
+	return job, nil
+}
+
+func (j *JobsManager) RunAndWait(jobFun interface{}, params ...interface{}) (*Job, error) {
+	job := NewJob()
+	err := job.Do(jobFun, params)
+	if err != nil {
+		return nil, err
+	}
+
+	j.RunJobAndWait(job)
+
+	return job, nil
+}
+
+func (j *JobsManager) WaitForJobs(timeoutInSeconds int, jobs ...*Job) []*Job {
+	jobsRunning := len(jobs)
+	done := make(chan *Job, len(jobs))
+	defer close(done)
+
+	for jobsRunning > 0 {
+		select {
+		case <-done:
+			jobsRunning--
+
+		case <-time.After(time.Duration(timeoutInSeconds) * time.Second):
+			return jobs
+		}
+	}
+
+	return jobs
+}
+
 // RunJob method
-func (j *JobsManager) RunJob(job *Job) (*Job, error) {
+func (j *JobsManager) RunJob(job *Job) *Job {
 	j.m.Lock()
 	j.jobList[job.ID] = job
 	j.m.Unlock()
 
 	j.workerChannel <- job
 
-	return job, nil
+	return job
 }
 
 // RunJobAndWait method
-func (j *JobsManager) RunJobAndWait(job *Job) (*Job, error) {
+func (j *JobsManager) RunJobAndWait(job *Job) *Job {
 	j.m.Lock()
 	j.jobList[job.ID] = job
 	j.m.Unlock()
 
 	j.workerChannel <- job
-	job.wait()
+	job.Wait()
 
-	return job, nil
+	return job
 }
 
 // RunJobsInSequence method
-func (j *JobsManager) RunJobsInSequence(jobs ...*Job) error {
+func (j *JobsManager) RunJobsInSequence(jobs ...*Job) []*Job {
 	for _, job := range jobs {
 		j.RunJobAndWait(job)
 	}
 
-	return nil
+	return jobs
 }
 
 // RunJobsInParallel method
-func (j *JobsManager) RunJobsInParallel(jobs ...*Job) error {
+func (j *JobsManager) RunJobsInParallel(jobs ...*Job) []*Job {
 	// run jobs in parallel
 	jobsRunning := 0
 	done := make(chan *Job, len(jobs))
@@ -85,7 +131,7 @@ func (j *JobsManager) RunJobsInParallel(jobs ...*Job) error {
 				job.Status = Done
 				done <- job
 			}()
-			job.run()
+			job.result.value, job.result.value = job.run()
 		}(job)
 	}
 	j.m.Unlock()
@@ -97,18 +143,18 @@ func (j *JobsManager) RunJobsInParallel(jobs ...*Job) error {
 		}
 	}
 
-	return nil
+	return jobs
 }
 
 // StopJob method
-func (j *JobsManager) StopJob(id string) (*Job, error) {
+func (j *JobsManager) StopJob(id string) *Job {
 	j.m.Lock()
 	defer j.m.Unlock()
 	job := j.jobList[id]
 
 	j.cancelChannel <- job
 
-	return job, nil
+	return job
 }
 
 // GetJobs method

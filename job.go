@@ -46,8 +46,8 @@ const (
 	Cancelled
 )
 
-// newJob method
-func newJob() *Job {
+// NewJob method
+func NewJob() *Job {
 	return &Job{
 		ID:      uuid.New().String(),
 		Status:  Pending,
@@ -57,8 +57,8 @@ func newJob() *Job {
 	}
 }
 
-// do method
-func (j *Job) do(jobFun interface{}, params ...interface{}) error {
+// Do method
+func (j *Job) Do(jobFun interface{}, params ...interface{}) error {
 	typ := reflect.TypeOf(jobFun)
 	if typ.Kind() != reflect.Func {
 		return ErrNotAFunction
@@ -76,8 +76,8 @@ func (j *Job) run() (interface{}, error) {
 	return callJobFuncWithParams(j.funcs[j.jobFunc], j.fparams[j.jobFunc])
 }
 
-// wait method
-func (j *Job) wait() {
+// Wait method
+func (j *Job) Wait() {
 	<-j.done
 }
 
