@@ -2,6 +2,7 @@ package jobmanager
 
 import (
 	"errors"
+	"github.com/google/uuid"
 	"reflect"
 	"runtime"
 )
@@ -30,8 +31,8 @@ type Job struct {
 
 // JobResult struct
 type JobResult struct {
-	message string
-	err     error
+	value interface{}
+	err   error
 }
 
 const (
@@ -45,10 +46,10 @@ const (
 	Cancelled
 )
 
-// NewJob method
-func NewJob(id string) *Job {
+// newJob method
+func newJob() *Job {
 	return &Job{
-		ID:      id,
+		ID:      uuid.New().String(),
 		Status:  Pending,
 		funcs:   make(map[string]interface{}),
 		fparams: make(map[string][]interface{}),
@@ -56,8 +57,8 @@ func NewJob(id string) *Job {
 	}
 }
 
-// Do method
-func (j *Job) Do(jobFun interface{}, params ...interface{}) error {
+// do method
+func (j *Job) do(jobFun interface{}, params ...interface{}) error {
 	typ := reflect.TypeOf(jobFun)
 	if typ.Kind() != reflect.Func {
 		return ErrNotAFunction
@@ -71,12 +72,8 @@ func (j *Job) Do(jobFun interface{}, params ...interface{}) error {
 }
 
 // run method
-func (j *Job) run() ([]reflect.Value, error) {
-	result, err := callJobFuncWithParams(j.funcs[j.jobFunc], j.fparams[j.jobFunc])
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
+func (j *Job) run() (interface{}, error) {
+	return callJobFuncWithParams(j.funcs[j.jobFunc], j.fparams[j.jobFunc])
 }
 
 // wait method
@@ -88,7 +85,7 @@ func getFunctionName(fn interface{}) string {
 	return runtime.FuncForPC(reflect.ValueOf(fn).Pointer()).Name()
 }
 
-func callJobFuncWithParams(jobFunc interface{}, params []interface{}) ([]reflect.Value, error) {
+func callJobFuncWithParams(jobFunc interface{}, params []interface{}) (interface{}, error) {
 	f := reflect.ValueOf(jobFunc)
 	if len(params) != f.Type().NumIn() {
 		return nil, ErrParamsNotAdapted
@@ -97,5 +94,37 @@ func callJobFuncWithParams(jobFunc interface{}, params []interface{}) ([]reflect
 	for k, param := range params {
 		in[k] = reflect.ValueOf(param)
 	}
-	return f.Call(in), nil
+
+	res := f.Call(in)
+
+	if len(res) == 1 {
+		value := res[0].Interface()
+		if checkIfIsError(value) {
+			return nil, value.(error)
+		}
+		return value, nil
+	}
+
+	if len(res) >= 2 {
+		value1 := res[0].Interface()
+		value2 := res[1].Interface()
+
+		if checkIfIsError(value1) {
+			return value2, value1.(error)
+		}
+
+		if checkIfIsError(value2) {
+			return value1, value2.(error)
+		}
+	}
+
+	return nil, nil
+}
+
+func checkIfIsError(value interface{}) bool {
+	ok := false
+	if value != nil {
+		_, ok = value.(error)
+	}
+	return ok
 }

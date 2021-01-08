@@ -8,15 +8,32 @@ import (
 	"time"
 )
 
+// StructResult struct
+type StructResult struct {
+	Name     string
+	LastName string
+}
+
+var (
+	defaultError        = errors.New("default error message")
+	defaultStringResult = "hello world!"
+	anotherError        = errors.New("another error message")
+	anotherStringResult = "bye bye world!"
+	defaultStructResult = StructResult{
+		Name:     "Name",
+		LastName: "LastName",
+	}
+)
+
 func TestJobsManager_RunJobAndWait(t *testing.T) {
 
 	jobsManager := NewJobManager()
 	jobsManager.StartManager()
 
-	job := createBasicJob("1")
+	job := createBasicJob()
 	job, _ = jobsManager.RunJobAndWait(job)
 
-	assert.Equal(t, job.Status, Done)
+	assert.Equal(t, Done, job.Status)
 }
 
 func TestJobsManager_RunJobsInSequence(t *testing.T) {
@@ -24,12 +41,12 @@ func TestJobsManager_RunJobsInSequence(t *testing.T) {
 	jobsManager := NewJobManager()
 	jobsManager.StartManager()
 
-	job1 := createBasicJob("1")
-	job2 := createBasicJob("2")
+	job1 := createBasicJob()
+	job2 := createBasicJob()
 	_ = jobsManager.RunJobsInSequence(job1, job2)
 
-	assert.Equal(t, job1.Status, Done)
-	assert.Equal(t, job2.Status, Done)
+	assert.Equal(t, Done, job1.Status)
+	assert.Equal(t, Done, job2.Status)
 }
 
 func TestJobsManager_RunJobsInParallel(t *testing.T) {
@@ -37,41 +54,99 @@ func TestJobsManager_RunJobsInParallel(t *testing.T) {
 	jobsManager := NewJobManager()
 	jobsManager.StartManager()
 
-	job1 := createBasicJob("1")
-	job2 := createBasicJob("2")
+	job1 := createBasicJob()
+	job2 := createBasicJob()
 	_ = jobsManager.RunJobsInParallel(job1, job2)
 
-	assert.Equal(t, job1.Status, Done)
-	assert.Equal(t, job2.Status, Done)
+	assert.Equal(t, Done, job1.Status)
+	assert.Equal(t, Done, job2.Status)
+}
+
+func TestJobsManager_RunJobAndWaitString(t *testing.T) {
+
+	jobsManager := NewJobManager()
+	jobsManager.StartManager()
+	job := createBasicJob()
+
+	job, _ = jobsManager.RunJobAndWait(job)
+
+	assert.Equal(t, defaultStringResult, job.result.value.(string))
 }
 
 func TestJobsManager_RunJobAndWaitError(t *testing.T) {
 
 	jobsManager := NewJobManager()
 	jobsManager.StartManager()
-	errorJob := createErrorJob("1")
+	job := createErrorJob()
 
-	_, err := jobsManager.RunJobAndWait(errorJob)
+	job, _ = jobsManager.RunJobAndWait(job)
 
-	fmt.Printf("%v\n", err)
+	assert.Equal(t, false, errors.Is(job.result.err, defaultError))
 }
 
-func createBasicJob(id string) *Job {
-	job := NewJob(id)
-	_ = job.Do(
-		func(message string) {
+func TestJobsManager_RunJobAndWaitStringError(t *testing.T) {
+
+	jobsManager := NewJobManager()
+	jobsManager.StartManager()
+	errorJob := createJobStringError()
+
+	job, _ := jobsManager.RunJobAndWait(errorJob)
+
+	assert.Equal(t, defaultStringResult, job.result.value.(string))
+	assert.NotEqual(t, anotherStringResult, job.result.value.(string))
+	assert.Equal(t, true, errors.Is(job.result.err, defaultError))
+	assert.Equal(t, false, errors.Is(job.result.err, anotherError))
+}
+
+func TestJobsManager_RunJobAndWaitStructError(t *testing.T) {
+
+	jobsManager := NewJobManager()
+	jobsManager.StartManager()
+	errorJob := createJobStructError()
+
+	job, _ := jobsManager.RunJobAndWait(errorJob)
+
+	assert.EqualValues(t, defaultStructResult, job.result.value.(StructResult))
+	assert.Equal(t, true, errors.Is(job.result.err, anotherError))
+}
+
+func createBasicJob() *Job {
+	job := newJob()
+	_ = job.do(
+		func(message string) string {
 			fmt.Printf("Hello %s\n", message)
 			time.Sleep(2 * time.Second)
+			return defaultStringResult
 		}, "world!")
 	return job
 }
 
-func createErrorJob(id string) *Job {
-	job := NewJob(id)
-	_ = job.Do(
+func createJobStringError() *Job {
+	job := newJob()
+	_ = job.do(
+		func(message string) (string, error) {
+			time.Sleep(2 * time.Second)
+			return defaultStringResult, defaultError
+		}, "error function")
+	return job
+}
+
+func createJobStructError() *Job {
+	job := newJob()
+	_ = job.do(
+		func(message string) (StructResult, error) {
+			time.Sleep(2 * time.Second)
+			return defaultStructResult, anotherError
+		}, "error function")
+	return job
+}
+
+func createErrorJob() *Job {
+	job := newJob()
+	_ = job.do(
 		func(message string) error {
 			time.Sleep(2 * time.Second)
-			return errors.New(fmt.Sprintf("error in the job with message: %s", message))
+			return anotherError
 		}, "error function")
 	return job
 }

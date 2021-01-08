@@ -14,7 +14,6 @@ type JobsManager struct {
 	m             sync.Mutex
 	jobList       map[string]*Job
 	workerChannel chan *Job
-	doneChannel   chan *Job
 	cancelChannel chan *Job
 	workerSize    int
 }
@@ -24,7 +23,6 @@ func NewJobManager() *JobsManager {
 	return &JobsManager{
 		jobList:       make(map[string]*Job),
 		workerChannel: make(chan *Job),
-		doneChannel:   make(chan *Job),
 		cancelChannel: make(chan *Job),
 		workerSize:    100, //By default allow 100 concurrent tasks
 	}
@@ -94,9 +92,8 @@ func (j *JobsManager) RunJobsInParallel(jobs ...*Job) error {
 
 	for jobsRunning > 0 {
 		select {
-		case job := <-done:
+		case <-done:
 			jobsRunning--
-			j.doneChannel <- job
 		}
 	}
 
@@ -124,14 +121,9 @@ func (j *JobsManager) registerWorker() {
 		select {
 		case job := <-j.workerChannel:
 			job.Status = Running
-			_, _ = job.run()
-
-			if job.result.err != errCancelled {
-				j.doneChannel <- job
-			}
-
-		case job := <-j.doneChannel:
+			job.result.value, job.result.err = job.run()
 			job.Status = Done
+
 			close(job.done)
 
 		case job := <-j.cancelChannel:
