@@ -70,8 +70,8 @@ func (j *Job) Do(jobFun interface{}, params ...interface{}) error {
 	return nil
 }
 
-// Run method
-func (j *Job) Run() ([]reflect.Value, error) {
+// run method
+func (j *Job) run() ([]reflect.Value, error) {
 	result, err := callJobFuncWithParams(j.funcs[j.jobFunc], j.fparams[j.jobFunc])
 	if err != nil {
 		return nil, err
@@ -79,8 +79,8 @@ func (j *Job) Run() ([]reflect.Value, error) {
 	return result, nil
 }
 
-// Wait method
-func (j *Job) Wait() {
+// wait method
+func (j *Job) wait() {
 	<-j.done
 }
 

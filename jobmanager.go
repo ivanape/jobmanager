@@ -2,7 +2,6 @@ package jobmanager
 
 import (
 	"errors"
-	"log"
 	"sync"
 )
 
@@ -41,9 +40,9 @@ func (j *JobsManager) StartManager() {
 // RunJob method
 func (j *JobsManager) RunJob(job *Job) (*Job, error) {
 	j.m.Lock()
-	defer j.m.Unlock()
-
 	j.jobList[job.ID] = job
+	j.m.Unlock()
+
 	j.workerChannel <- job
 
 	return job, nil
@@ -52,12 +51,11 @@ func (j *JobsManager) RunJob(job *Job) (*Job, error) {
 // RunJobAndWait method
 func (j *JobsManager) RunJobAndWait(job *Job) (*Job, error) {
 	j.m.Lock()
-	defer j.m.Unlock()
-
 	j.jobList[job.ID] = job
-	j.workerChannel <- job
+	j.m.Unlock()
 
-	job.Wait()
+	j.workerChannel <- job
+	job.wait()
 
 	return job, nil
 }
@@ -65,8 +63,7 @@ func (j *JobsManager) RunJobAndWait(job *Job) (*Job, error) {
 // RunJobsInSequence method
 func (j *JobsManager) RunJobsInSequence(jobs ...*Job) error {
 	for _, job := range jobs {
-		j.RunJob(job)
-		job.Wait()
+		j.RunJobAndWait(job)
 	}
 
 	return nil
@@ -74,7 +71,7 @@ func (j *JobsManager) RunJobsInSequence(jobs ...*Job) error {
 
 // RunJobsInParallel method
 func (j *JobsManager) RunJobsInParallel(jobs ...*Job) error {
-	// Run jobs in parallel
+	// run jobs in parallel
 	jobsRunning := 0
 	done := make(chan *Job, len(jobs))
 	defer close(done)
@@ -84,10 +81,13 @@ func (j *JobsManager) RunJobsInParallel(jobs ...*Job) error {
 		jobsRunning++
 		j.jobList[job.ID] = job
 
-		// Run the job in it's own goroutine
+		// run the job in it's own goroutine
 		go func(job *Job) {
-			defer func() { done <- job }()
-			job.Run()
+			defer func() {
+				job.Status = Done
+				done <- job
+			}()
+			job.run()
 		}(job)
 	}
 	j.m.Unlock()
@@ -116,7 +116,6 @@ func (j *JobsManager) StopJob(id string) (*Job, error) {
 
 // GetJobs method
 func (j *JobsManager) GetJobs() map[string]*Job {
-	log.Printf("%v", j.jobList)
 	return j.jobList
 }
 
@@ -125,9 +124,7 @@ func (j *JobsManager) registerWorker() {
 		select {
 		case job := <-j.workerChannel:
 			job.Status = Running
-			value, err := job.Run()
-
-			log.Printf("%v %v", value, err)
+			_, _ = job.run()
 
 			if job.result.err != errCancelled {
 				j.doneChannel <- job
@@ -136,7 +133,6 @@ func (j *JobsManager) registerWorker() {
 		case job := <-j.doneChannel:
 			job.Status = Done
 			close(job.done)
-			log.Printf("Job %s is done\n", job.ID)
 
 		case job := <-j.cancelChannel:
 			job.Status = Cancelled
@@ -144,7 +140,6 @@ func (j *JobsManager) registerWorker() {
 				err: errCancelled,
 			}
 			close(job.done)
-			log.Printf("Job %s is cancelled\n", job.ID)
 		}
 	}
 }
