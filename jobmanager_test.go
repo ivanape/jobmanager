@@ -42,6 +42,38 @@ func TestJobsManager_Run(t *testing.T) {
 	assert.Equal(t, Done, job.Status)
 }
 
+func TestJobsManager_RunAndWait(t *testing.T) {
+	jobsManager := NewJobManager(defaultWorkerSize)
+
+	f := func(message string) string {
+		fmt.Printf("Hello %s\n", message)
+		time.Sleep(2 * time.Second)
+		return defaultStringResult
+	}
+
+	job, err := jobsManager.RunAndWait(f, "world!")
+
+	assert.Nil(t, err)
+	assert.Equal(t, Done, job.Status)
+}
+
+func TestJobsManager_WaitForJobs(t *testing.T) {
+	jobsManager := NewJobManager(defaultWorkerSize)
+
+	f := func(message string) string {
+		fmt.Printf("Hello %s\n", message)
+		time.Sleep(2 * time.Second)
+		return defaultStringResult
+	}
+
+	job1, _ := jobsManager.Run(f, "world 1!")
+	job2, _ := jobsManager.Run(f, "world 2!")
+	jobsManager.WaitForJobs(10, job1, job2)
+
+	assert.Equal(t, Done, job1.Status)
+	assert.Equal(t, Done, job2.Status)
+}
+
 func TestJobsManager_RunJobAndWait(t *testing.T) {
 
 	jobsManager := NewJobManager(defaultWorkerSize)

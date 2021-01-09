@@ -3,7 +3,6 @@ package jobmanager
 import (
 	"errors"
 	"sync"
-	"time"
 )
 
 var (
@@ -41,7 +40,7 @@ func (j *JobsManager) startManager() {
 
 func (j *JobsManager) Run(jobFun interface{}, params ...interface{}) (*Job, error) {
 	job := NewJob()
-	err := job.Do(jobFun, params)
+	err := job.Do(jobFun, params...)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +52,7 @@ func (j *JobsManager) Run(jobFun interface{}, params ...interface{}) (*Job, erro
 
 func (j *JobsManager) RunAndWait(jobFun interface{}, params ...interface{}) (*Job, error) {
 	job := NewJob()
-	err := job.Do(jobFun, params)
+	err := job.Do(jobFun, params...)
 	if err != nil {
 		return nil, err
 	}
@@ -61,24 +60,6 @@ func (j *JobsManager) RunAndWait(jobFun interface{}, params ...interface{}) (*Jo
 	j.RunJobAndWait(job)
 
 	return job, nil
-}
-
-func (j *JobsManager) WaitForJobs(timeoutInSeconds int, jobs ...*Job) []*Job {
-	jobsRunning := len(jobs)
-	done := make(chan *Job, len(jobs))
-	defer close(done)
-
-	for jobsRunning > 0 {
-		select {
-		case <-done:
-			jobsRunning--
-
-		case <-time.After(time.Duration(timeoutInSeconds) * time.Second):
-			return jobs
-		}
-	}
-
-	return jobs
 }
 
 // RunJob method
