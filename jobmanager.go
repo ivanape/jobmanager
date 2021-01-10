@@ -98,33 +98,18 @@ func (j *JobsManager) RunJobsInSequence(jobs ...*Job) []*Job {
 
 // RunJobsInParallel method
 func (j *JobsManager) RunJobsInParallel(jobs ...*Job) []*Job {
-	// run jobs in parallel
-	jobsRunning := 0
-	done := make(chan *Job, len(jobs))
-	defer close(done)
+	var wg sync.WaitGroup
+	wg.Add(len(jobs))
 
-	j.m.Lock()
 	for _, job := range jobs {
-		jobsRunning++
 		j.jobList[job.ID] = job
-
-		// run the job in it's own goroutine
 		go func(job *Job) {
-			defer func() {
-				job.Status = Done
-				done <- job
-			}()
-			job.result.value, job.result.value = job.run()
+			j.RunJobAndWait(job)
+			wg.Done()
 		}(job)
 	}
-	j.m.Unlock()
 
-	for jobsRunning > 0 {
-		select {
-		case <-done:
-			jobsRunning--
-		}
-	}
+	wg.Wait()
 
 	return jobs
 }
