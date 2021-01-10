@@ -38,6 +38,7 @@ func (j *JobsManager) startManager() {
 	}
 }
 
+// Run method
 func (j *JobsManager) Run(jobFun interface{}, params ...interface{}) (*Job, error) {
 	job := NewJob()
 	err := job.Do(jobFun, params...)
@@ -50,6 +51,7 @@ func (j *JobsManager) Run(jobFun interface{}, params ...interface{}) (*Job, erro
 	return job, nil
 }
 
+// RunAndWait method
 func (j *JobsManager) RunAndWait(jobFun interface{}, params ...interface{}) (*Job, error) {
 	job := NewJob()
 	err := job.Do(jobFun, params...)
