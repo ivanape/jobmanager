@@ -47,18 +47,22 @@ const (
 )
 
 // NewJob method
-func NewJob() *Job {
-	return &Job{
+func NewJob(jobFun interface{}, params ...interface{}) (*Job, error) {
+	job := &Job{
 		ID:      uuid.New().String(),
 		Status:  Pending,
 		funcs:   make(map[string]interface{}),
 		fparams: make(map[string][]interface{}),
 		done:    make(chan interface{}),
 	}
+
+	err := job.do(jobFun, params...)
+
+	return job, err
 }
 
-// Do method
-func (j *Job) Do(jobFun interface{}, params ...interface{}) error {
+// do method
+func (j *Job) do(jobFun interface{}, params ...interface{}) error {
 	typ := reflect.TypeOf(jobFun)
 	if typ.Kind() != reflect.Func {
 		return ErrNotAFunction
@@ -71,14 +75,19 @@ func (j *Job) Do(jobFun interface{}, params ...interface{}) error {
 	return nil
 }
 
+// wait method
+func (j *Job) wait() {
+	<-j.done
+}
+
+func (j *Job) resetState() {
+	j.Status = Pending
+	j.done = make(chan interface{})
+}
+
 // run method
 func (j *Job) run() (interface{}, error) {
 	return callJobFuncWithParams(j.funcs[j.jobFunc], j.fparams[j.jobFunc])
-}
-
-// Wait method
-func (j *Job) Wait() {
-	<-j.done
 }
 
 func getFunctionName(fn interface{}) string {
@@ -127,4 +136,17 @@ func checkIfIsError(value interface{}) bool {
 		_, ok = value.(error)
 	}
 	return ok
+}
+
+func (j *Job) closeDoneChannel() {
+	// Test if channel is already close
+	ok := true
+	select {
+	case _, ok = <-j.done:
+	default:
+	}
+
+	if ok {
+		close(j.done)
+	}
 }

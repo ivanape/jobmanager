@@ -40,8 +40,7 @@ func (j *JobsManager) startManager() {
 
 // Run method
 func (j *JobsManager) Run(jobFun interface{}, params ...interface{}) (*Job, error) {
-	job := NewJob()
-	err := job.Do(jobFun, params...)
+	job, err := NewJob(jobFun, params...)
 	if err != nil {
 		return nil, err
 	}
@@ -53,8 +52,7 @@ func (j *JobsManager) Run(jobFun interface{}, params ...interface{}) (*Job, erro
 
 // RunAndWait method
 func (j *JobsManager) RunAndWait(jobFun interface{}, params ...interface{}) (*Job, error) {
-	job := NewJob()
-	err := job.Do(jobFun, params...)
+	job, err := NewJob(jobFun, params...)
 	if err != nil {
 		return nil, err
 	}
@@ -66,6 +64,12 @@ func (j *JobsManager) RunAndWait(jobFun interface{}, params ...interface{}) (*Jo
 
 // RunJob method
 func (j *JobsManager) RunJob(job *Job) *Job {
+
+	// Check if job has already done
+	if job.Status == Done {
+		job.resetState()
+	}
+
 	j.m.Lock()
 	j.jobList[job.ID] = job
 	j.m.Unlock()
@@ -77,12 +81,8 @@ func (j *JobsManager) RunJob(job *Job) *Job {
 
 // RunJobAndWait method
 func (j *JobsManager) RunJobAndWait(job *Job) *Job {
-	j.m.Lock()
-	j.jobList[job.ID] = job
-	j.m.Unlock()
-
-	j.workerChannel <- job
-	job.Wait()
+	j.RunJob(job)
+	job.wait()
 
 	return job
 }
@@ -102,7 +102,6 @@ func (j *JobsManager) RunJobsInParallel(jobs ...*Job) []*Job {
 	wg.Add(len(jobs))
 
 	for _, job := range jobs {
-		j.jobList[job.ID] = job
 		go func(job *Job) {
 			j.RunJobAndWait(job)
 			wg.Done()
@@ -137,15 +136,14 @@ func (j *JobsManager) registerWorker() {
 			job.Status = Running
 			job.result.value, job.result.err = job.run()
 			job.Status = Done
-
-			close(job.done)
+			job.closeDoneChannel()
 
 		case job := <-j.cancelChannel:
 			job.Status = Cancelled
 			job.result = JobResult{
 				err: errCancelled,
 			}
-			close(job.done)
+			job.closeDoneChannel()
 		}
 	}
 }

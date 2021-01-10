@@ -36,7 +36,7 @@ func TestJobsManager_Run(t *testing.T) {
 	}
 
 	job, err := jobsManager.Run(f, "world!")
-	job.Wait()
+	job.wait()
 
 	assert.Nil(t, err)
 	assert.Equal(t, Done, job.Status)
@@ -127,8 +127,27 @@ func TestJobsManager_RunJobAndWaitStringError(t *testing.T) {
 	assert.Equal(t, false, errors.Is(job.result.err, errAnother))
 }
 
-func TestJobsManager_RunJobAndWaitStructError(t *testing.T) {
+func TestJobsManager_ReRunSameJob(t *testing.T) {
+	jobsManager := NewJobManager(defaultWorkerSize)
 
+	job, err := NewJob(func() {
+		fmt.Println("Hello world!")
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	jobsManager.RunJobAndWait(job)
+	job2, err := jobsManager.RunAndWait(func() { fmt.Println("Hello world!") })
+	jobsManager.RunJobsInSequence(job, job2, job, job2)
+	jobsManager.RunJobsInParallel(job, job2, job, job2)
+
+	assert.Equal(t, 2, len(jobsManager.jobList))
+	assert.Equal(t, Done, job.Status)
+	assert.Equal(t, Done, job2.Status)
+}
+
+func TestJobsManager_RunJobAndWaitStructError(t *testing.T) {
 	jobsManager := NewJobManager(defaultWorkerSize)
 	errorJob := createJobStructError()
 
@@ -139,19 +158,17 @@ func TestJobsManager_RunJobAndWaitStructError(t *testing.T) {
 }
 
 func createBasicJob() *Job {
-	job := NewJob()
-	_ = job.Do(
-		func(message string) string {
-			fmt.Printf("Hello %s\n", message)
-			time.Sleep(2 * time.Second)
-			return defaultStringResult
-		}, "world!")
+	job, _ := NewJob(func(message string) string {
+		fmt.Printf("Hello %s\n", message)
+		time.Sleep(2 * time.Second)
+		return defaultStringResult
+	}, "world!")
+
 	return job
 }
 
 func createJobStringError() *Job {
-	job := NewJob()
-	_ = job.Do(
+	job, _ := NewJob(
 		func(message string) (string, error) {
 			time.Sleep(2 * time.Second)
 			return defaultStringResult, errDefault
@@ -160,8 +177,7 @@ func createJobStringError() *Job {
 }
 
 func createJobStructError() *Job {
-	job := NewJob()
-	_ = job.Do(
+	job, _ := NewJob(
 		func(message string) (StructResult, error) {
 			time.Sleep(2 * time.Second)
 			return defaultStructResult, errAnother
@@ -170,8 +186,7 @@ func createJobStructError() *Job {
 }
 
 func createErrorJob() *Job {
-	job := NewJob()
-	_ = job.Do(
+	job, _ := NewJob(
 		func(message string) error {
 			time.Sleep(2 * time.Second)
 			return errAnother
