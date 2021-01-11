@@ -111,6 +111,8 @@ func callJobFuncWithParams(jobFunc interface{}, params []interface{}) (interface
 		if checkIfIsError(value2) {
 			return value1, value2.(error)
 		}
+
+		return value1, nil
 	}
 
 	return nil, nil

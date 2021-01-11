@@ -30,10 +30,10 @@ var (
 
 func TestJobsManager_Run(t *testing.T) {
 
-	f := func(message string) string {
+	f := func(message string) (string, error) {
 		fmt.Printf("Hello %s\n", message)
 		time.Sleep(2 * time.Second)
-		return defaultStringResult
+		return defaultStringResult, nil
 	}
 
 	job, err := jobsManager.Run(f, "world!")
@@ -42,6 +42,7 @@ func TestJobsManager_Run(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.Equal(t, Done, job.Status)
+	assert.Equal(t, defaultStringResult, job.Result.Value.(string))
 }
 
 func TestJobsManager_RunAndWait(t *testing.T) {
