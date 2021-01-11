@@ -81,8 +81,10 @@ func (j *Job) wait() {
 }
 
 func (j *Job) resetState() {
-	j.Status = Pending
-	j.done = make(chan interface{})
+	if j.Status == Done {
+		j.Status = Pending
+		j.done = make(chan interface{})
+	}
 }
 
 // run method
@@ -139,14 +141,17 @@ func checkIfIsError(value interface{}) bool {
 }
 
 func (j *Job) closeDoneChannel() {
-	// Test if channel is already close
-	ok := true
+	channelIsOpen := true
 	select {
-	case _, ok = <-j.done:
+	case _, channelIsOpen = <-j.done:
 	default:
 	}
 
-	if ok {
+	if channelIsOpen {
 		close(j.done)
 	}
+}
+
+func (j *Job) isCancelled() bool {
+	return errors.Is(j.result.err, errCancelled)
 }

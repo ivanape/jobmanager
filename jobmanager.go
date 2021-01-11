@@ -64,16 +64,15 @@ func (j *JobsManager) RunAndWait(jobFun interface{}, params ...interface{}) (*Jo
 
 // RunJob method
 func (j *JobsManager) RunJob(job *Job) *Job {
-	// Check if job has already done
-	if job.Status == Done {
-		job.resetState()
-	}
+	job.resetState()
 
 	j.m.Lock()
 	j.jobList[job.ID] = job
 	j.m.Unlock()
 
-	j.workerChannel <- job
+	if !job.isCancelled() {
+		j.workerChannel <- job
+	}
 
 	return job
 }
@@ -89,9 +88,7 @@ func (j *JobsManager) RunJobAndWait(job *Job) *Job {
 // RunJobsInSerial method
 func (j *JobsManager) RunJobsInSerial(jobs ...*Job) []*Job {
 	for _, job := range jobs {
-		if errors.Is(job.result.err, errCancelled) == false {
-			j.RunJobAndWait(job)
-		}
+		j.RunJobAndWait(job)
 	}
 
 	return jobs
