@@ -15,7 +15,7 @@ type Customer struct {
 }
 
 var (
-	defaultWorkerSize   = 100
+	defaultWorkerSize   = 20
 	errDefault          = errors.New("default error message")
 	defaultStringResult = "hello world!"
 	errAnother          = errors.New("another error message")
