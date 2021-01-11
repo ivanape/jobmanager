@@ -153,5 +153,5 @@ func (j *Job) closeDoneChannel() {
 }
 
 func (j *Job) isCancelled() bool {
-	return errors.Is(j.result.err, errCancelled)
+	return errors.Is(j.result.err, ErrJobCancelled)
 }

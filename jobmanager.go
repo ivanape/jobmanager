@@ -6,25 +6,32 @@ import (
 )
 
 var (
-	errCancelled = errors.New("jobCancelled")
+	// ErrJobCancelled job is cancelled
+	ErrJobCancelled = errors.New("jobCancelled")
+	// ErrGroupExists job group exists
+	ErrGroupExists = errors.New("groupExists")
+	// ErrGroupNotExists job group does not exists
+	ErrGroupNotExists = errors.New("groupNotExists")
 )
 
 // JobsManager struct
 type JobsManager struct {
-	m             sync.Mutex
-	jobList       map[string]*Job
-	workerChannel chan *Job
-	cancelChannel chan *Job
-	workerSize    int
+	m              sync.Mutex
+	fullJobList    map[string]*Job
+	groupedJobList map[string][]*Job
+	workerChannel  chan *Job
+	cancelChannel  chan *Job
+	workerSize     int
 }
 
 // NewJobManager method
 func NewJobManager(workerSize int) *JobsManager {
 	j := &JobsManager{
-		jobList:       make(map[string]*Job),
-		workerChannel: make(chan *Job),
-		cancelChannel: make(chan *Job),
-		workerSize:    workerSize,
+		fullJobList:    make(map[string]*Job),
+		groupedJobList: make(map[string][]*Job),
+		workerChannel:  make(chan *Job),
+		cancelChannel:  make(chan *Job),
+		workerSize:     workerSize,
 	}
 
 	j.startManager()
@@ -67,7 +74,7 @@ func (j *JobsManager) RunJob(job *Job) *Job {
 	job.resetState()
 
 	j.m.Lock()
-	j.jobList[job.ID] = job
+	j.fullJobList[job.ID] = job
 	j.m.Unlock()
 
 	if !job.isCancelled() {
@@ -132,13 +139,43 @@ func (j *JobsManager) WaitForJobs(jobs ...*Job) []*Job {
 
 // GetJobs method
 func (j *JobsManager) GetJobs() []*Job {
-	result := make([]*Job, 0, len(j.jobList))
+	result := make([]*Job, 0, len(j.fullJobList))
 
-	for _, job := range j.jobList {
+	for _, job := range j.fullJobList {
 		result = append(result, job)
 	}
 
 	return result
+}
+
+// CreateGroup method
+func (j *JobsManager) CreateGroup(tag string, jobs ...*Job) error {
+
+	if j.groupedJobList[tag] != nil {
+		return ErrGroupExists
+	}
+
+	for _, job := range jobs {
+		j.groupedJobList[tag] = append(j.groupedJobList[tag], job)
+	}
+
+	return nil
+}
+
+// GetJobsByGroup method
+func (j *JobsManager) GetJobsByGroup(tag string) ([]*Job, error) {
+
+	if j.groupedJobList[tag] == nil {
+		return nil, ErrGroupNotExists
+	}
+
+	result := make([]*Job, 0, len(j.groupedJobList[tag]))
+
+	for _, job := range j.groupedJobList[tag] {
+		result = append(result, job)
+	}
+
+	return result, nil
 }
 
 func (j *JobsManager) registerWorker() {
@@ -153,7 +190,7 @@ func (j *JobsManager) registerWorker() {
 		case job := <-j.cancelChannel:
 			job.Status = Cancelled
 			job.result = JobResult{
-				err: errCancelled,
+				err: ErrJobCancelled,
 			}
 			job.closeDoneChannel()
 		}

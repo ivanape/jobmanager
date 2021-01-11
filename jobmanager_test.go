@@ -24,7 +24,8 @@ var (
 		Name:     "Name",
 		LastName: "LastName",
 	}
-	jobsManager = NewJobManager(defaultWorkerSize)
+	jobsManager      = NewJobManager(defaultWorkerSize)
+	defaultGroupName = "my-group"
 )
 
 func TestJobsManager_Run(t *testing.T) {
@@ -139,7 +140,7 @@ func TestJobsManager_ReRunSameJob(t *testing.T) {
 	newJobManager.RunJobsInSerial(job, job2, job, job2)
 	newJobManager.RunJobsInParallel(job, job2, job, job2)
 
-	assert.Equal(t, 2, len(newJobManager.jobList))
+	assert.Equal(t, 2, len(newJobManager.fullJobList))
 	assert.Equal(t, Done, job.Status)
 	assert.Equal(t, Done, job2.Status)
 }
@@ -157,6 +158,31 @@ func TestJobsManager_GetJobs(t *testing.T) {
 	jobList := jobsManager.GetJobs()
 
 	assert.NotNil(t, jobList)
+}
+
+func TestJobsManager_JobGroupManagement(t *testing.T) {
+	job1 := createBasicJob()
+	job2 := createJobStructParam()
+	job3 := createJobStructError()
+	job4 := createErrorJob()
+
+	err := jobsManager.CreateGroup(defaultGroupName, job1, job2, job3, job4)
+	assert.Nil(t, err)
+
+	jobs, err := jobsManager.GetJobsByGroup("not-exists")
+	assert.True(t, errors.Is(err, ErrGroupNotExists))
+
+	jobs, err = jobsManager.GetJobsByGroup(defaultGroupName)
+	assert.Nil(t, err)
+	assert.Equal(t, 4, len(jobs))
+
+	jobsManager.RunJobsInParallel(job3, job4)
+	jobsManager.RunJobsInSerial(job1, job2)
+
+	assert.Equal(t, Done, job1.Status)
+	assert.Equal(t, Done, job2.Status)
+	assert.Equal(t, Done, job3.Status)
+	assert.Equal(t, Done, job4.Status)
 }
 
 func createBasicJob() *Job {
