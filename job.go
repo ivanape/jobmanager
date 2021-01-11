@@ -22,7 +22,7 @@ type Status int
 type Job struct {
 	ID      string
 	Status  Status
-	result  JobResult
+	Result  JobResult
 	funcs   map[string]interface{}   // Map for the function task store
 	fparams map[string][]interface{} // Map for function and  params of function
 	jobFunc string
@@ -153,5 +153,5 @@ func (j *Job) closeDoneChannel() {
 }
 
 func (j *Job) isCancelled() bool {
-	return errors.Is(j.result.err, ErrJobCancelled)
+	return errors.Is(j.Result.err, ErrJobCancelled)
 }

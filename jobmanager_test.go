@@ -105,14 +105,14 @@ func TestJobsManager_RunJobAndWaitString(t *testing.T) {
 	job := createBasicJob()
 	job = jobsManager.RunJobAndWait(job)
 
-	assert.Equal(t, defaultStringResult, job.result.value.(string))
+	assert.Equal(t, defaultStringResult, job.Result.value.(string))
 }
 
 func TestJobsManager_RunJobAndWaitError(t *testing.T) {
 	job := createErrorJob()
 	job = jobsManager.RunJobAndWait(job)
 
-	assert.Equal(t, false, errors.Is(job.result.err, errDefault))
+	assert.Equal(t, false, errors.Is(job.Result.err, errDefault))
 }
 
 func TestJobsManager_RunJobAndWaitStringError(t *testing.T) {
@@ -120,10 +120,10 @@ func TestJobsManager_RunJobAndWaitStringError(t *testing.T) {
 
 	job := jobsManager.RunJobAndWait(errorJob)
 
-	assert.Equal(t, defaultStringResult, job.result.value.(string))
-	assert.NotEqual(t, anotherStringResult, job.result.value.(string))
-	assert.Equal(t, true, errors.Is(job.result.err, errDefault))
-	assert.Equal(t, false, errors.Is(job.result.err, errAnother))
+	assert.Equal(t, defaultStringResult, job.Result.value.(string))
+	assert.NotEqual(t, anotherStringResult, job.Result.value.(string))
+	assert.Equal(t, true, errors.Is(job.Result.err, errDefault))
+	assert.Equal(t, false, errors.Is(job.Result.err, errAnother))
 }
 
 func TestJobsManager_ReRunSameJob(t *testing.T) {
@@ -150,8 +150,8 @@ func TestJobsManager_RunJobAndWaitStructError(t *testing.T) {
 
 	job := jobsManager.RunJobAndWait(errorJob)
 
-	assert.EqualValues(t, defaultStructValue, job.result.value.(Customer))
-	assert.Equal(t, true, errors.Is(job.result.err, errAnother))
+	assert.EqualValues(t, defaultStructValue, job.Result.value.(Customer))
+	assert.Equal(t, true, errors.Is(job.Result.err, errAnother))
 }
 
 func TestJobsManager_GetJobs(t *testing.T) {
