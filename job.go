@@ -31,8 +31,8 @@ type Job struct {
 
 // JobResult struct
 type JobResult struct {
-	value interface{}
-	err   error
+	Value interface{}
+	Err   error
 }
 
 const (
@@ -153,5 +153,5 @@ func (j *Job) closeDoneChannel() {
 }
 
 func (j *Job) isCancelled() bool {
-	return errors.Is(j.Result.err, ErrJobCancelled)
+	return errors.Is(j.Result.Err, ErrJobCancelled)
 }

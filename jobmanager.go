@@ -183,14 +183,14 @@ func (j *JobsManager) registerWorker() {
 		select {
 		case job := <-j.workerChannel:
 			job.Status = Running
-			job.Result.value, job.Result.err = job.run()
+			job.Result.Value, job.Result.Err = job.run()
 			job.Status = Done
 			job.closeDoneChannel()
 
 		case job := <-j.cancelChannel:
 			job.Status = Cancelled
 			job.Result = JobResult{
-				err: ErrJobCancelled,
+				Err: ErrJobCancelled,
 			}
 			job.closeDoneChannel()
 		}
