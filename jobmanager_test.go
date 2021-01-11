@@ -8,8 +8,8 @@ import (
 	"time"
 )
 
-// StructResult struct
-type StructResult struct {
+// Customer struct
+type Customer struct {
 	Name     string
 	LastName string
 }
@@ -20,14 +20,14 @@ var (
 	defaultStringResult = "hello world!"
 	errAnother          = errors.New("another error message")
 	anotherStringResult = "bye bye world!"
-	defaultStructResult = StructResult{
+	defaultStructValue  = Customer{
 		Name:     "Name",
 		LastName: "LastName",
 	}
+	jobsManager = NewJobManager(defaultWorkerSize)
 )
 
 func TestJobsManager_Run(t *testing.T) {
-	jobsManager := NewJobManager(defaultWorkerSize)
 
 	f := func(message string) string {
 		fmt.Printf("Hello %s\n", message)
@@ -43,8 +43,6 @@ func TestJobsManager_Run(t *testing.T) {
 }
 
 func TestJobsManager_RunAndWait(t *testing.T) {
-	jobsManager := NewJobManager(defaultWorkerSize)
-
 	f := func(message string) string {
 		fmt.Printf("Hello %s\n", message)
 		time.Sleep(2 * time.Second)
@@ -58,19 +56,17 @@ func TestJobsManager_RunAndWait(t *testing.T) {
 }
 
 func TestJobsManager_RunJobAndWait(t *testing.T) {
-
-	jobsManager := NewJobManager(defaultWorkerSize)
-
 	job := createBasicJob()
-	job = jobsManager.RunJobAndWait(job)
+	jobsManager.RunJobAndWait(job)
+
+	job2 := createJobStructParam()
+	jobsManager.RunJobAndWait(job2)
 
 	assert.Equal(t, Done, job.Status)
+	assert.Equal(t, Done, job2.Status)
 }
 
 func TestJobsManager_RunJobsInSequence(t *testing.T) {
-
-	jobsManager := NewJobManager(defaultWorkerSize)
-
 	job1 := createBasicJob()
 	job2 := createBasicJob()
 	jobs := jobsManager.RunJobsInSequence(job1, job2)
@@ -81,9 +77,6 @@ func TestJobsManager_RunJobsInSequence(t *testing.T) {
 }
 
 func TestJobsManager_RunJobsInParallel(t *testing.T) {
-
-	jobsManager := NewJobManager(defaultWorkerSize)
-
 	job1 := createBasicJob()
 	job2 := createBasicJob()
 	jobs := jobsManager.RunJobsInParallel(job1, job2)
@@ -94,9 +87,6 @@ func TestJobsManager_RunJobsInParallel(t *testing.T) {
 }
 
 func TestJobsManager_RunJobAndWaitString(t *testing.T) {
-
-	jobsManager := NewJobManager(defaultWorkerSize)
-
 	job := createBasicJob()
 	job = jobsManager.RunJobAndWait(job)
 
@@ -104,9 +94,6 @@ func TestJobsManager_RunJobAndWaitString(t *testing.T) {
 }
 
 func TestJobsManager_RunJobAndWaitError(t *testing.T) {
-
-	jobsManager := NewJobManager(defaultWorkerSize)
-
 	job := createErrorJob()
 	job = jobsManager.RunJobAndWait(job)
 
@@ -114,9 +101,6 @@ func TestJobsManager_RunJobAndWaitError(t *testing.T) {
 }
 
 func TestJobsManager_RunJobAndWaitStringError(t *testing.T) {
-
-	jobsManager := NewJobManager(defaultWorkerSize)
-
 	errorJob := createJobStringError()
 
 	job := jobsManager.RunJobAndWait(errorJob)
@@ -128,8 +112,7 @@ func TestJobsManager_RunJobAndWaitStringError(t *testing.T) {
 }
 
 func TestJobsManager_ReRunSameJob(t *testing.T) {
-	jobsManager := NewJobManager(defaultWorkerSize)
-
+	newJobManager := NewJobManager(1)
 	job, err := NewJob(func() {
 		fmt.Println("Hello world!")
 	})
@@ -137,23 +120,22 @@ func TestJobsManager_ReRunSameJob(t *testing.T) {
 		panic(err)
 	}
 
-	jobsManager.RunJobAndWait(job)
-	job2, err := jobsManager.RunAndWait(func() { fmt.Println("Hello world!") })
-	jobsManager.RunJobsInSequence(job, job2, job, job2)
-	jobsManager.RunJobsInParallel(job, job2, job, job2)
+	newJobManager.RunJobAndWait(job)
+	job2, err := newJobManager.RunAndWait(func() { fmt.Println("Hello world!") })
+	newJobManager.RunJobsInSequence(job, job2, job, job2)
+	newJobManager.RunJobsInParallel(job, job2, job, job2)
 
-	assert.Equal(t, 2, len(jobsManager.jobList))
+	assert.Equal(t, 2, len(newJobManager.jobList))
 	assert.Equal(t, Done, job.Status)
 	assert.Equal(t, Done, job2.Status)
 }
 
 func TestJobsManager_RunJobAndWaitStructError(t *testing.T) {
-	jobsManager := NewJobManager(defaultWorkerSize)
 	errorJob := createJobStructError()
 
 	job := jobsManager.RunJobAndWait(errorJob)
 
-	assert.EqualValues(t, defaultStructResult, job.result.value.(StructResult))
+	assert.EqualValues(t, defaultStructValue, job.result.value.(Customer))
 	assert.Equal(t, true, errors.Is(job.result.err, errAnother))
 }
 
@@ -163,6 +145,16 @@ func createBasicJob() *Job {
 		time.Sleep(2 * time.Second)
 		return defaultStringResult
 	}, "world!")
+
+	return job
+}
+
+func createJobStructParam() *Job {
+	job, _ := NewJob(func(values Customer) Customer {
+		fmt.Printf("Hello %s\n", values.Name)
+		time.Sleep(2 * time.Second)
+		return values
+	}, defaultStructValue)
 
 	return job
 }
@@ -178,9 +170,9 @@ func createJobStringError() *Job {
 
 func createJobStructError() *Job {
 	job, _ := NewJob(
-		func(message string) (StructResult, error) {
+		func(message string) (Customer, error) {
 			time.Sleep(2 * time.Second)
-			return defaultStructResult, errAnother
+			return defaultStructValue, errAnother
 		}, "error function")
 	return job
 }
