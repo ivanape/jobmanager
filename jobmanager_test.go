@@ -66,14 +66,27 @@ func TestJobsManager_RunJobAndWait(t *testing.T) {
 	assert.Equal(t, Done, job2.Status)
 }
 
-func TestJobsManager_RunJobsInSequence(t *testing.T) {
+func TestJobsManager_RunJobsInSerial(t *testing.T) {
 	job1 := createBasicJob()
 	job2 := createBasicJob()
-	jobs := jobsManager.RunJobsInSequence(job1, job2)
+	jobs := jobsManager.RunJobsInSerial(job1, job2)
 
 	assert.Equal(t, 2, len(jobs))
 	assert.Equal(t, Done, job1.Status)
 	assert.Equal(t, Done, job2.Status)
+}
+
+func TestJobsManager_StopJobsInSerial(t *testing.T) {
+	job1 := createBasicJob()
+	job2 := createBasicJob()
+	go jobsManager.RunJobsInSerial(job1, job2)
+
+	jobsManager.StopJob(job2)
+
+	time.Sleep(5 * time.Second)
+
+	assert.Equal(t, Done, job1.Status)
+	assert.Equal(t, Cancelled, job2.Status)
 }
 
 func TestJobsManager_RunJobsInParallel(t *testing.T) {
@@ -122,7 +135,7 @@ func TestJobsManager_ReRunSameJob(t *testing.T) {
 
 	newJobManager.RunJobAndWait(job)
 	job2, err := newJobManager.RunAndWait(func() { fmt.Println("Hello world!") })
-	newJobManager.RunJobsInSequence(job, job2, job, job2)
+	newJobManager.RunJobsInSerial(job, job2, job, job2)
 	newJobManager.RunJobsInParallel(job, job2, job, job2)
 
 	assert.Equal(t, 2, len(newJobManager.jobList))
