@@ -121,6 +121,15 @@ func (j *JobsManager) StopJob(job *Job) *Job {
 	return job
 }
 
+// RunJobsInSerial method
+func (j *JobsManager) WaitForJobs(jobs ...*Job) []*Job {
+	for _, job := range jobs {
+		job.wait()
+	}
+
+	return jobs
+}
+
 // GetJobs method
 func (j *JobsManager) GetJobs() map[string]*Job {
 	return j.jobList

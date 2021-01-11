@@ -36,7 +36,8 @@ func TestJobsManager_Run(t *testing.T) {
 	}
 
 	job, err := jobsManager.Run(f, "world!")
-	job.wait()
+
+	jobsManager.WaitForJobs(job)
 
 	assert.Nil(t, err)
 	assert.Equal(t, Done, job.Status)
