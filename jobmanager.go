@@ -121,7 +121,7 @@ func (j *JobsManager) StopJob(job *Job) *Job {
 	return job
 }
 
-// RunJobsInSerial method
+// WaitForJobs method
 func (j *JobsManager) WaitForJobs(jobs ...*Job) []*Job {
 	for _, job := range jobs {
 		job.wait()
@@ -131,8 +131,14 @@ func (j *JobsManager) WaitForJobs(jobs ...*Job) []*Job {
 }
 
 // GetJobs method
-func (j *JobsManager) GetJobs() map[string]*Job {
-	return j.jobList
+func (j *JobsManager) GetJobs() []*Job {
+	result := make([]*Job, 0, len(j.jobList))
+
+	for _, job := range j.jobList {
+		result = append(result, job)
+	}
+
+	return result
 }
 
 func (j *JobsManager) registerWorker() {

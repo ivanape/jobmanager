@@ -153,6 +153,12 @@ func TestJobsManager_RunJobAndWaitStructError(t *testing.T) {
 	assert.Equal(t, true, errors.Is(job.result.err, errAnother))
 }
 
+func TestJobsManager_GetJobs(t *testing.T) {
+	jobList := jobsManager.GetJobs()
+
+	assert.NotNil(t, jobList)
+}
+
 func createBasicJob() *Job {
 	job, _ := NewJob(func(message string) string {
 		fmt.Printf("Hello %s\n", message)
