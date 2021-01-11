@@ -2,6 +2,7 @@ package jobmanager
 
 import (
 	"errors"
+	"github.com/google/uuid"
 	"sync"
 )
 
@@ -38,16 +39,24 @@ func NewJobManager(workerSize int) *JobsManager {
 	return j
 }
 
-// startManager method
-func (j *JobsManager) startManager() {
-	for i := 0; i < j.workerSize; i++ {
-		go j.registerWorker()
+// NewJob method
+func (j *JobsManager) NewJob(jobFun interface{}, params ...interface{}) (*Job, error) {
+	job := &Job{
+		ID:      uuid.New().String(),
+		Status:  Pending,
+		funcs:   make(map[string]interface{}),
+		fparams: make(map[string][]interface{}),
+		done:    make(chan interface{}),
 	}
+
+	err := job.do(jobFun, params...)
+
+	return job, err
 }
 
 // Run method
 func (j *JobsManager) Run(jobFun interface{}, params ...interface{}) (*Job, error) {
-	job, err := NewJob(jobFun, params...)
+	job, err := j.NewJob(jobFun, params...)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +68,7 @@ func (j *JobsManager) Run(jobFun interface{}, params ...interface{}) (*Job, erro
 
 // RunAndWait method
 func (j *JobsManager) RunAndWait(jobFun interface{}, params ...interface{}) (*Job, error) {
-	job, err := NewJob(jobFun, params...)
+	job, err := j.NewJob(jobFun, params...)
 	if err != nil {
 		return nil, err
 	}
@@ -194,5 +203,12 @@ func (j *JobsManager) registerWorker() {
 			}
 			job.closeDoneChannel()
 		}
+	}
+}
+
+// startManager method
+func (j *JobsManager) startManager() {
+	for i := 0; i < j.workerSize; i++ {
+		go j.registerWorker()
 	}
 }

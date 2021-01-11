@@ -2,7 +2,6 @@ package jobmanager
 
 import (
 	"errors"
-	"github.com/google/uuid"
 	"reflect"
 	"runtime"
 )
@@ -45,21 +44,6 @@ const (
 	// Cancelled state
 	Cancelled
 )
-
-// NewJob method
-func NewJob(jobFun interface{}, params ...interface{}) (*Job, error) {
-	job := &Job{
-		ID:      uuid.New().String(),
-		Status:  Pending,
-		funcs:   make(map[string]interface{}),
-		fparams: make(map[string][]interface{}),
-		done:    make(chan interface{}),
-	}
-
-	err := job.do(jobFun, params...)
-
-	return job, err
-}
 
 // do method
 func (j *Job) do(jobFun interface{}, params ...interface{}) error {

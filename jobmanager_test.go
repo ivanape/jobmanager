@@ -128,7 +128,7 @@ func TestJobsManager_RunJobAndWaitStringError(t *testing.T) {
 
 func TestJobsManager_ReRunSameJob(t *testing.T) {
 	newJobManager := NewJobManager(1)
-	job, err := NewJob(func() {
+	job, err := newJobManager.NewJob(func() {
 		fmt.Println("Hello world!")
 	})
 	if err != nil {
@@ -186,7 +186,7 @@ func TestJobsManager_JobGroupManagement(t *testing.T) {
 }
 
 func createBasicJob() *Job {
-	job, _ := NewJob(func(message string) string {
+	job, _ := jobsManager.NewJob(func(message string) string {
 		fmt.Printf("Hello %s\n", message)
 		time.Sleep(2 * time.Second)
 		return defaultStringResult
@@ -196,7 +196,7 @@ func createBasicJob() *Job {
 }
 
 func createJobStructParam() *Job {
-	job, _ := NewJob(func(values Customer) Customer {
+	job, _ := jobsManager.NewJob(func(values Customer) Customer {
 		fmt.Printf("Hello %s\n", values.Name)
 		time.Sleep(2 * time.Second)
 		return values
@@ -206,7 +206,7 @@ func createJobStructParam() *Job {
 }
 
 func createJobStringError() *Job {
-	job, _ := NewJob(
+	job, _ := jobsManager.NewJob(
 		func(message string) (string, error) {
 			time.Sleep(2 * time.Second)
 			return defaultStringResult, errDefault
@@ -215,7 +215,7 @@ func createJobStringError() *Job {
 }
 
 func createJobStructError() *Job {
-	job, _ := NewJob(
+	job, _ := jobsManager.NewJob(
 		func(message string) (Customer, error) {
 			time.Sleep(2 * time.Second)
 			return defaultStructValue, errAnother
@@ -224,7 +224,7 @@ func createJobStructError() *Job {
 }
 
 func createErrorJob() *Job {
-	job, _ := NewJob(
+	job, _ := jobsManager.NewJob(
 		func(message string) error {
 			time.Sleep(2 * time.Second)
 			return errAnother
