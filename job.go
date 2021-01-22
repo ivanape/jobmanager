@@ -4,6 +4,7 @@ import (
 	"errors"
 	"reflect"
 	"runtime"
+	"time"
 )
 
 var (
@@ -19,13 +20,16 @@ type Status int
 
 // Job struct
 type Job struct {
-	ID      string
-	Status  Status
-	Result  JobResult
-	funcs   map[string]interface{}   // Map for the function task store
-	fparams map[string][]interface{} // Map for function and  params of function
-	jobFunc string
-	done    chan interface{}
+	ID            string
+	Status        Status
+	Result        JobResult
+	Tags          []string
+	StartDatetime time.Time
+	EndDatetime   time.Time
+	JobFunc       string
+	funcs         map[string]interface{}   // Map for the function task store
+	fparams       map[string][]interface{} // Map for function and  params of function
+	done          chan interface{}
 }
 
 // JobResult struct
@@ -45,6 +49,11 @@ const (
 	Cancelled
 )
 
+func (j *Job) addTag(tag string) *Job {
+	j.Tags = append(j.Tags, tag)
+	return j
+}
+
 // do method
 func (j *Job) do(jobFun interface{}, params ...interface{}) error {
 	typ := reflect.TypeOf(jobFun)
@@ -54,7 +63,7 @@ func (j *Job) do(jobFun interface{}, params ...interface{}) error {
 	fname := getFunctionName(jobFun)
 	j.funcs[fname] = jobFun
 	j.fparams[fname] = params
-	j.jobFunc = fname
+	j.JobFunc = fname
 
 	return nil
 }
@@ -73,7 +82,11 @@ func (j *Job) resetState() {
 
 // run method
 func (j *Job) run() (interface{}, error) {
-	return callJobFuncWithParams(j.funcs[j.jobFunc], j.fparams[j.jobFunc])
+	defer func() {
+		j.EndDatetime = time.Now().UTC()
+	}()
+	j.StartDatetime = time.Now().UTC()
+	return callJobFuncWithParams(j.funcs[j.JobFunc], j.fparams[j.JobFunc])
 }
 
 func getFunctionName(fn interface{}) string {

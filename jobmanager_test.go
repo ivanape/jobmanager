@@ -167,7 +167,7 @@ func TestJobsManager_JobGroupManagement(t *testing.T) {
 	job3 := createJobStructError()
 	job4 := createErrorJob()
 
-	err := jobsManager.CreateGroup(defaultGroupName, job1, job2, job3, job4)
+	err := jobsManager.AddJobsToGroup(defaultGroupName, job1, job2, job3, job4)
 	assert.Nil(t, err)
 
 	jobs, err := jobsManager.GetJobsByGroup("not-exists")
@@ -184,6 +184,15 @@ func TestJobsManager_JobGroupManagement(t *testing.T) {
 	assert.Equal(t, Done, job2.Status)
 	assert.Equal(t, Done, job3.Status)
 	assert.Equal(t, Done, job4.Status)
+}
+
+func TestJobsManager_TagsManagement(t *testing.T) {
+	job1 := createBasicJob()
+	jobsManager.AddJobTag(job1, "my-tag")
+
+	result := jobsManager.JobContainsTag(job1, "my-tag")
+
+	assert.Equal(t, true, result)
 }
 
 func createBasicJob() *Job {

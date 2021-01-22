@@ -9,8 +9,6 @@ import (
 var (
 	// ErrJobCancelled job is cancelled
 	ErrJobCancelled = errors.New("jobCancelled")
-	// ErrGroupExists job group exists
-	ErrGroupExists = errors.New("groupExists")
 	// ErrGroupNotExists job group does not exists
 	ErrGroupNotExists = errors.New("groupNotExists")
 )
@@ -52,6 +50,22 @@ func (j *JobsManager) NewJob(jobFun interface{}, params ...interface{}) (*Job, e
 	err := job.do(jobFun, params...)
 
 	return job, err
+}
+
+// AddJobTag method
+func (j *JobsManager) AddJobTag(job *Job, tag string) *Job {
+	return job.addTag(tag)
+}
+
+// JobContainsTag method
+func (j *JobsManager) JobContainsTag(job *Job, tag string) bool {
+	for _, jobTag := range job.Tags {
+		if tag == jobTag {
+			return true
+		}
+	}
+
+	return false
 }
 
 // Run method
@@ -157,12 +171,8 @@ func (j *JobsManager) GetJobs() []*Job {
 	return result
 }
 
-// CreateGroup method
-func (j *JobsManager) CreateGroup(tag string, jobs ...*Job) error {
-
-	if j.groupedJobList[tag] != nil {
-		return ErrGroupExists
-	}
+// AddJobsToGroup method
+func (j *JobsManager) AddJobsToGroup(tag string, jobs ...*Job) error {
 
 	for _, job := range jobs {
 		j.groupedJobList[tag] = append(j.groupedJobList[tag], job)
@@ -185,6 +195,20 @@ func (j *JobsManager) GetJobsByGroup(tag string) ([]*Job, error) {
 	}
 
 	return result, nil
+}
+
+// StopJobsByGroup method
+func (j *JobsManager) StopJobsByGroup(tag string) error {
+
+	if j.groupedJobList[tag] == nil {
+		return ErrGroupNotExists
+	}
+
+	for _, job := range j.groupedJobList[tag] {
+		j.StopJob(job)
+	}
+
+	return nil
 }
 
 func (j *JobsManager) registerWorker() {
